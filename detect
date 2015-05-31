@@ -1,0 +1,35 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          detect
+# Required-Start:    
+# Required-Stop:     
+# Default-Start:     2 3 4 5
+# Default-Stop:
+# Short-Description: Detect daemon to take picture
+# Description:       Detect take a picture each time the detector is ebabled
+### END INIT INFO
+
+# -*- coding: utf-8 -*-
+# Debian init.d script for detectœ
+# Copyright © 2015 Olivier Le Bozec <olivier.le.bozec@gmail.com> 
+
+set -ex
+
+DAEMON=/home/pi/detect/detect.py
+PICTUREDIR=/home/pi/detectOut;
+
+test -e $DAEMON || exit 0
+
+case "$1" in
+  start)
+  	if [ ! -d $PICTUREDIR ]; then
+    		mkdir -p $PICTUREDIR 
+  	fi
+
+        echo "start detect"
+	python $DAEMON &
+  ;;
+  stop)
+  ;;
+esac
+
