@@ -1,6 +1,7 @@
 import RPi.GPIO as IO
 import time
-import os
+from sys import stderr
+from subprocess import call
 
 IO.setmode(IO.BOARD);
 IO.setup(12,IO.OUT);    # LED GPIO 18
@@ -9,7 +10,7 @@ IO.setup(18,IO.OUT);    # LED GPIO 24
 IO.setup(7,IO.IN);      # Detecteur GPIO 4
 
 
-logFile = "/home/pi/detectOut/detect.log"
+logFileName = "/home/pi/detectOut/detect.log"
 removeFiles = "rm /home/pi/detectOut/*"
 dropboxSync = "/home/pi/Dropbox-Uploader/dropbox_uploader.sh -s upload /home/pi/detectOut /"
 photoDayligth = "raspistill -n -t 1000 -ISO 200 -ex auto -ev 0 -o /home/pi/detectOut/"
@@ -17,28 +18,46 @@ photoDayligth = "raspistill -n -t 1000 -ISO 200 -ex auto -ev 0 -o /home/pi/detec
 
 lastCurrentDay = time.strftime("%d");
 
-def FlushDirectory():
+def Detect_RemoveFiles():
 	global lastCurrentDay;
 	currentDay = time.strftime("%d");
 	if (currentDay != lastCurrentDay):
-		print (removeFiles);
-		os.system(removeFiles);
+		log.write(removeFiles);
+		call(removeFiles, shell=True);
 		lastCurrentDay = currentDay;
 	
-def Smile():
-        #build filename
-        filename = time.strftime("%m-%d_%H-%M-%S");
-        filename += ".jpg";
+def Detect_Smile():
+    #build filename
+    filename = time.strftime("%m-%d_%H-%M-%S");
+    filename += ".jpg";
 
-        #take photo
-        os.system(photoDayligth + filename);
-        time.sleep(2); #PiCam takes 1000ms seconds to take a picture
-	log.write("Photo "+ filename);
+    #take photo
+	try:
+		retcode = call(photoDayligth + filename, shell=True);
+		log.write(photoDayligth + filename + retcode);
+		if retcode < 0:
+			print >> stderr, "Child was terminated by signal", -retcode
+		else:
+			print >> stderr, "Child returned", retcode
+	except OSError as e:
+		print >> stderr, "Execution failed:", e	
 
-def Start():
+def Detect_SaveInCloud():
+	try:
+		retcode = call(dropboxSync, shell=True);
+		log.write(dropboxSync + retcode);
+		if retcode < 0:
+			print >> stderr, "Child was terminated by signal", -retcode
+		else:
+			print >> stderr, "Child returned", retcode
+	except OSError as e:
+		print >> stderr, "Execution failed:", e	
+
+def Detect_Start():
 	TakePhoto = False;
 
-	while (1):
+	try:
+		while (1):
         	time.sleep(0.7);
                	IO.output(16,True);   # HEARTBEAT LED
         	time.sleep(0.3);
@@ -51,14 +70,19 @@ def Start():
                 	TakePhoto = False;
 
         	if (TakePhoto == True):
-			FlushDirectory();
-                	Smile();
+				Detect_RemoveFiles();
+                Detect_Smile();
 
 	        	#upload file in the cloud
-                	IO.output(12,False);
+                IO.output(12,False);
         		IO.output(18,True);
-        		os.system(dropboxSync);
+				Detect_SaveInCloud();
+				log.write(dropboxSync);
 		        IO.output(18,False);
+	
+	except Exception as e:
+		log.write("Exception type" +  type(e));
 
-log = open(logFile, 'w');
-Start();
+logFile = open(logFileName, 'w');
+Detect_Start();
+logFile.close();
