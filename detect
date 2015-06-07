@@ -1,35 +1,43 @@
-#!/bin/sh
 ### BEGIN INIT INFO
-# Provides:          detect
-# Required-Start:    
-# Required-Stop:     
-# Default-Start:     2 3 4 5
-# Default-Stop:
-# Short-Description: Detect daemon to take picture
-# Description:       Detect take a picture each time the detector is ebabled
+# Provides: detect
+# Required-Start: $remote_fs $syslog
+# Required-Stop: $remote_fs $syslog
+# Default-Start: 2 3 4 5
+# Default-Stop: 0 1 6
+# Short-Description: detect
+# Description: detect
 ### END INIT INFO
 
 # -*- coding: utf-8 -*-
-# Debian init.d script for detectœ
+# Debian init.d script for detect
 # Copyright © 2015 Olivier Le Bozec <olivier.le.bozec@gmail.com> 
 
-set -ex
+#! /bin/sh
+# /etc/init.d/detect
 
 DAEMON=/home/pi/detect/detect.py
-PICTUREDIR=/home/pi/detectOut;
+PICTUREDIR=/home/pi/detectOut
 
 test -e $DAEMON || exit 0
 
 case "$1" in
   start)
+    echo "Starting detect"
   	if [ ! -d $PICTUREDIR ]; then
-    		mkdir -p $PICTUREDIR 
+    	mkdir -p $PICTUREDIR 
   	fi
 
-        echo "start detect"
-	python $DAEMON &
-  ;;
+	python $DAEMON 2>&1 &
+	;;
   stop)
-  ;;
+    echo "Stopping detect"
+	DETECT_PID=`ps aux | grep detect.py | head -1 | awk '{print $2}'`
+	kill -9 $DETECT_PID
+	;;
+  *)
+    echo "Usage: /etc/init.d/detect {start|stop}"
+    exit 1
+	;;
 esac
+exit 0
 
