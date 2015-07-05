@@ -13,7 +13,7 @@ IO.setup(7,IO.IN);      # Detecteur GPIO 4
 
 logFileName = "/home/pi/detectOut/detect.log"
 removeFiles = "rm /home/pi/detectOut/*"
-dropboxSync = "/home/pi/Dropbox-Uploader/dropbox_uploader.sh -s upload /home/pi/detectOut /"
+dropboxSync = "/home/pi/Dropbox-Uploader/dropbox_uploader.sh -f /home/pi/.dropbox_uploader -s upload /home/pi/detectOut /"
 photoDayligth = "raspistill -n -t 1000 -ISO 200 -ex auto -ev 0 -o /home/pi/detectOut/"
 #photoNigthligth = "raspistill -n -ex nigth /home/pi/detectOut/"
 
@@ -28,18 +28,18 @@ def Detect_RemoveFiles():
 		lastCurrentDay = currentDay;
 	
 def Detect_Smile():
-    #build filename
-    filename = time.strftime("%m-%d_%H-%M-%S");
-    filename += ".jpg";
+	#build filename
+	filename = time.strftime("%m-%d_%H-%M-%S");
+	filename += ".jpg";
 
-    #take photo
-    try:
-        retcode = call(photoDayligth + filename, shell=True);
-        logfile.write(photoDayligth + filename + "=" + format(retcode) + "\n");
-        if retcode < 0:
-             print >> stderr, "Child was terminated by signal", -retcode
-    except OSError as e:
-        print >> stderr, "Call take photo execution failed:", e	
+	#take photo
+	try:
+		retcode = call(photoDayligth + filename, shell=True);
+		logfile.write(photoDayligth + filename + "=" + format(retcode) + "\n");
+		if retcode < 0:
+			print >> stderr, "Child was terminated by signal", -retcode
+	except OSError as e:
+		print >> stderr, "Call take photo execution failed:", e	
 
 def Detect_SaveInCloud():
 	try:
