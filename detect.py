@@ -1,8 +1,9 @@
 import RPi.GPIO as IO
 import time
 import sys
-from sys import stderr
+import logging
 from subprocess import call
+from os import remove
 
 IO.setmode(IO.BOARD);
 IO.setup(12,IO.OUT);    # LED GPIO 18
@@ -10,75 +11,72 @@ IO.setup(16,IO.OUT);    # LED GPIO 23
 IO.setup(18,IO.OUT);    # LED GPIO 24 
 IO.setup(7,IO.IN);      # Detecteur GPIO 4
 
+outDir = "/home/pi/detectOut/"
+dropboxSync = "/home/pi/Dropbox-Uploader/dropbox_uploader.sh -f /home/pi/.dropbox_uploader upload " + outDir + " /"
+photoDayligth = "raspistill -n -t 1000 -ISO 200 -ex auto -ev 0 -o "
+photoNigthligth = "raspistill -n -ex nigth -o "
 
-logFileName = "/home/pi/detectOut/detect.log"
-removeFiles = "rm /home/pi/detectOut/*"
-dropboxSync = "/home/pi/Dropbox-Uploader/dropbox_uploader.sh -f /home/pi/.dropbox_uploader -s upload /home/pi/detectOut /"
-photoDayligth = "raspistill -n -t 1000 -ISO 200 -ex auto -ev 0 -o /home/pi/detectOut/"
-#photoNigthligth = "raspistill -n -ex nigth /home/pi/detectOut/"
+def main():
+	logging.basicConfig(filename=outDir+"detect.log",level=logging.INFO)
+	Detect_Start();
 
-lastCurrentDay = time.strftime("%d");
+def Detect_Start():
+        TakePhoto = False;
 
-def Detect_RemoveFiles():
-	global lastCurrentDay;
-	currentDay = time.strftime("%d");
-	if (currentDay != lastCurrentDay):
-		logfile.write(removeFiles + "\n");
-		call(removeFiles, shell=True);
-		lastCurrentDay = currentDay;
-	
-def Detect_Smile():
-	#build filename
-	filename = time.strftime("%m-%d_%H-%M-%S");
-	filename += ".jpg";
+        try:
+                while (1):
+                        time.sleep(0.7);
+                        IO.output(16,True);   # HEARTBEAT LED
+                        time.sleep(0.3);
+                        IO.output(16,False);
 
-	#take photo
+                        if (IO.input(7) == True and TakePhoto == False ):
+                                TakePhoto = True;
+                                IO.output(12,True);   # NOTIFY DETECTION
+                        else:
+                                TakePhoto = False;
+
+                        if (TakePhoto == True):
+				#build filename
+				filename = outDir + time.strftime("%m-%d_%H-%M-%S");
+				filename += ".jpg";
+
+				#take picture
+                                Detect_Smile(filename);
+
+                                #upload file in the cloud
+                                IO.output(12,False);
+                                IO.output(18,True);
+                                Detect_SaveInCloud();
+				
+				#delete file
+				remove(filename);
+                                IO.output(18,False);
+
+        except:
+                logging.error("Main loop unexpected error: %s", format(sys.exc_info()[0]));
+
+def Detect_Smile(filename):
+
+	#take picture 
 	try:
 		retcode = call(photoDayligth + filename, shell=True);
-		logfile.write(photoDayligth + filename + "=" + format(retcode) + "\n");
+		logging.info(photoDayligth + filename + "=" + format(retcode));
 		if retcode < 0:
-			print >> stderr, "Child was terminated by signal", -retcode
+			logging.error("Detect_Smile Child was terminated by signal %x", -retcode);
 	except OSError as e:
-		print >> stderr, "Call take photo execution failed:", e	
+		logging.error("Call take photo execution failed:" + e);
 
 def Detect_SaveInCloud():
 	try:
 		retcode = call(dropboxSync, shell=True);
-		logfile.write(dropboxSync + format(retcode) + "\n");
+		logging.info(dropboxSync + "=" + format(retcode));
 		if retcode < 0:
-			print >> stderr, "Child was terminated by signal", -retcode
+			logging.error("Call dropbox was terminated by signal %x", retcode);
 	except OSError as e:
-		print >> stderr, "Execution failed:", e	
+		logging.error("Execution failed:" + e);	
 
-def Detect_Start():
-	TakePhoto = False;
+# MAIN
+if __name__ == '__main__':
+    main()
 
-	try:
-		while (1):
-        		time.sleep(0.7);
-               		IO.output(16,True);   # HEARTBEAT LED
-        		time.sleep(0.3);
-               		IO.output(16,False);
-
-        		if (IO.input(7) == True and TakePhoto == False ):
-                		TakePhoto = True;
-                		IO.output(12,True);   # NOTIFY DETECTION 
-        		else:
-                		TakePhoto = False;
-
-        		if (TakePhoto == True):
-				Detect_RemoveFiles();
-                		Detect_Smile();
-
-	        		#upload file in the cloud
-                		IO.output(12,False);
-        			IO.output(18,True);
-				Detect_SaveInCloud();
-		        	IO.output(18,False);
-	
-	except:
-		logfile.write("Main loop unexpected error:" + format(sys.exc_info()[0]) + "\n");
-
-logfile = open(logFileName, 'w');
-Detect_Start();
-logfile.close();
